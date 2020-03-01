@@ -54,6 +54,11 @@ func (s *Storage) GetTicker(coin, token string) (*watchmarket.Ticker, error) {
 func (s *Storage) SaveRates(rates watchmarket.Rates, pl ProviderList) {
 	for _, rate := range rates {
 		r, err := s.GetRate(rate.Currency)
+		if err != nil && err != watchmarket.ErrNotFound {
+			logger.Error(err, "SaveRates")
+			// TODO handle this properly
+			continue
+		}
 		if err == nil {
 			op := pl.GetPriority(r.Provider)
 			np := pl.GetPriority(rate.Provider)
@@ -61,7 +66,7 @@ func (s *Storage) SaveRates(rates watchmarket.Rates, pl ProviderList) {
 				continue
 			}
 
-			if rate.Timestamp < r.Timestamp && op >= np {
+			if rate.Timestamp < r.Timestamp && np <= op {
 				continue
 			}
 		}
