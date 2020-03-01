@@ -18,14 +18,16 @@ type ProviderList interface {
 
 func (s *Storage) SaveTicker(coin *watchmarket.Ticker, pl ProviderList) error {
 	cd, err := s.GetTicker(coin.CoinName, coin.TokenId)
-	if err == nil {
+	if err != nil && err != watchmarket.ErrNotFound {
+		return err
+	} else if err == nil {
 		op := pl.GetPriority(cd.Price.Provider)
 		np := pl.GetPriority(coin.Price.Provider)
 		if op != -1 && np > op {
 			return errors.E("ticker provider with less priority")
 		}
 
-		if cd.LastUpdate.After(coin.LastUpdate) && op >= np {
+		if cd.LastUpdate.After(coin.LastUpdate) && np <= op {
 			return errors.E("ticker is outdated or too low priority", errors.Params{
 				"oldTickerTime":     cd.LastUpdate,
 				"newTickerTime":     coin.LastUpdate,
@@ -34,6 +36,7 @@ func (s *Storage) SaveTicker(coin *watchmarket.Ticker, pl ProviderList) error {
 			})
 		}
 	}
+	
 	hm := createHashMap(coin.CoinName, coin.TokenId)
 	return s.AddHM(EntityQuotes, hm, coin)
 }
